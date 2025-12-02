@@ -70,19 +70,11 @@ def calculate_contours(img_map, color_limits = COLOR_LIMITS):
             mode=cv2.RETR_CCOMP, 
             method=cv2.CHAIN_APPROX_SIMPLE)
 
-        gray2rgb_img = cv2.cvtColor(mask,cv2.COLOR_GRAY2RGB)
-        
-        contour_img = cv2.drawContours(
-            image=gray2rgb_img, 
-            contours=contours, 
-            contourIdx=-1, 
-            color=(0, 255, 0), 
-            thickness=5, 
-            lineType=cv2.LINE_AA
-        )
+        contour_img = cv2.cvtColor(mask,cv2.COLOR_GRAY2RGB)
         
         # Getting contour centroids
         centroids = []
+        draw_contours = []
         for i, contour in enumerate(contours):
             M = cv2.moments(contour)
 
@@ -93,6 +85,17 @@ def calculate_contours(img_map, color_limits = COLOR_LIMITS):
                 cy = int(M['m01']/M['m00'])
 
                 centroids.append([cx, cy, weight, i])
+                
+                draw_contours.append(contour)
+
+        contour_img = cv2.drawContours(
+            image=contour_img, 
+            contours=draw_contours, 
+            contourIdx=-1, 
+            color=(0, 255, 0), 
+            thickness=5, 
+            lineType=cv2.LINE_AA
+        )
 
         # Marking all centroids
         for centroid in centroids:
