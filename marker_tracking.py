@@ -294,12 +294,18 @@ def video_tracking(path, name, ext = '.mp4', codec= 'mp4v', render = False):
     full_path = path + name + '_tracking' + ext
     out = cv2.VideoWriter(full_path, fourcc, fps, (frame_width, frame_height))
     
-    while cap.isOpened():
+    frame_count = 0
+    frame_total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    
+    while frame_count < frame_total:
         ret, frame = cap.read()
         
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
+        
+        if frame is None:
+            continue
         
         img_map = {
             'baseline': {
@@ -328,7 +334,11 @@ def video_tracking(path, name, ext = '.mp4', codec= 'mp4v', render = False):
 
             if cv2.waitKey(1) == ord('q'):
                 break
-        
+            
+        frame_count += 1
+        print(f"Frames processed: {frame_count}/{frame_total}", end='\r')
+    print(end='\n')
+    
     cap.release()
     out.release()
     cv2.destroyAllWindows()
@@ -344,4 +354,4 @@ if __name__ == "__main__":
     video_tracking(path, name, render = render)
     end_time = time.perf_counter()
     
-    print(f"time elapsed: {end_time - start_time:.1f} seconds")
+    print(f"Time elapsed: {end_time - start_time:.1f} seconds")
