@@ -288,6 +288,10 @@ def get_frame(img_map):
     return output_frame
 
 def video_tracking(path, name, ext = '.mp4', codec= 'mp4v', render = False):
+    
+    print(f"Loading video...")
+    start_time = time.perf_counter()
+    
     cap = cv2.VideoCapture(path + name + ext)
     
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -295,22 +299,27 @@ def video_tracking(path, name, ext = '.mp4', codec= 'mp4v', render = False):
     frame_height = int(frame_height + frame_height*1/4)
     fps = cap.get(cv2.CAP_PROP_FPS)
     
-    fourcc = cv2.VideoWriter_fourcc(*codec)
-    full_path = path + name + '_tracking' + ext
-    out = cv2.VideoWriter(full_path, fourcc, fps, (frame_width, frame_height))
-    
-    frame_count = 0
-    frame_total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    
-    while frame_count < frame_total:
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    video_frames = []
+    for i in range(total_frames):
         ret, frame = cap.read()
         
         if not ret:
-            print("Can't receive frame (stream end?). Exiting ...")
+            print("Video loaded!!")
             break
         
         if frame is None:
             continue
+        
+        video_frames.append(frame)
+    end_time = time.perf_counter()
+    print(f"    Time elapsed: {end_time - start_time:.1f} seconds")
+    
+    print(f"Processing frames...")
+    start_time = time.perf_counter()
+    
+    for i, frame in enumerate(video_frames):
         
         img_map = {
             'baseline': {
@@ -330,23 +339,38 @@ def video_tracking(path, name, ext = '.mp4', codec= 'mp4v', render = False):
         img_map, bkgd_contours, best_fit = find_marker(img_map, contour_map)
         img_map = draw_annotations(img_map, bkgd_contours, best_fit)
 
-        out_frame = get_frame(img_map)
+        video_frames[i] = get_frame(img_map)
+
+        print(f"    Processed: {i+1}/{total_frames}", end='\r')
+    print(end='\n')
+    
+    end_time = time.perf_counter()
+    print(f"    Time elapsed: {end_time - start_time:.1f} seconds")
+    
+    print(f"Saving video...")
+    start_time = time.perf_counter()
+    
+    fourcc = cv2.VideoWriter_fourcc(*codec)
+    full_path = path + name + '_tracking' + ext
+    out = cv2.VideoWriter(full_path, fourcc, fps, (frame_width, frame_height))
         
-        out.write(out_frame)
+    for i, frame in enumerate(video_frames):
+        out.write(frame)
         
         if render:
-            cv2.imshow('Marker Tracking', out_frame)
+            cv2.imshow('Marker Tracking', frame)
 
             if cv2.waitKey(1) == ord('q'):
                 break
             
-        frame_count += 1
-        print(f"Frames processed: {frame_count}/{frame_total}", end='\r')
-    print(end='\n')
-    
     cap.release()
     out.release()
     cv2.destroyAllWindows()
+    
+    end_time = time.perf_counter()
+    print(f"    Time elapsed: {end_time - start_time:.1f} seconds")
+
+
 
 if __name__ == "__main__":
     path = './data/'
@@ -354,9 +378,8 @@ if __name__ == "__main__":
     render = False
 
     print(f"Processing: {path+name}")
-    
-    start_time = time.perf_counter()
+    start_time = time.perf_counter()  
     video_tracking(path, name, render = render)
     end_time = time.perf_counter()
+    print(f"Total time elapsed: {end_time - start_time:.1f} seconds")
     
-    print(f"Time elapsed: {end_time - start_time:.1f} seconds")
