@@ -21,7 +21,7 @@ COLOR_LIMITS = {
         'min_area': COLOR_AREA,
     },
     'blue':{
-        'min_color': (80, 70, 120),
+        'min_color': (80, 100, 120),
         'max_color': (130, 255, 255),
         'min_area': COLOR_AREA,
     },
@@ -70,16 +70,22 @@ def calculate_contours(img_map, color_limits = COLOR_LIMITS):
             mode=cv2.RETR_CCOMP, 
             method=cv2.CHAIN_APPROX_SIMPLE)
 
-        contour_img = cv2.cvtColor(mask,cv2.COLOR_GRAY2RGB)
+        contour_img = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
         
         # Getting contour centroids
         centroids = []
         draw_contours = []
         for i, contour in enumerate(contours):
             
-            # Contour has no child or is a hole
-            if ((hierarchy[0, i, 2] == -1) or (hierarchy[0, i, 3] != -1)):
-                continue
+            # Checking contour hierarchy
+            if color == 'white':
+                # Contour has no child or is a hole
+                if ((hierarchy[0, i, 2] == -1) or (hierarchy[0, i, 3] != -1)):
+                    continue
+            else:
+                # Contour is a hole
+                if (hierarchy[0, i, 3] != -1):
+                    continue
             
             M = cv2.moments(contour)
 
@@ -318,7 +324,7 @@ def video_tracking(path, name, ext = '.mp4', codec= 'mp4v', render = False):
     
     print(f"Processing frames...")
     start_time = time.perf_counter()
-    
+    out_frames = []
     for i, frame in enumerate(video_frames):
         
         img_map = {
@@ -339,7 +345,8 @@ def video_tracking(path, name, ext = '.mp4', codec= 'mp4v', render = False):
         img_map, bkgd_contours, best_fit = find_marker(img_map, contour_map)
         img_map = draw_annotations(img_map, bkgd_contours, best_fit)
 
-        video_frames[i] = get_frame(img_map)
+        out_frame = get_frame(img_map)
+        out_frames.append(out_frame)
 
         print(f"    Processed: {i+1}/{total_frames}", end='\r')
     print(end='\n')
@@ -354,7 +361,7 @@ def video_tracking(path, name, ext = '.mp4', codec= 'mp4v', render = False):
     full_path = path + name + '_tracking' + ext
     out = cv2.VideoWriter(full_path, fourcc, fps, (frame_width, frame_height))
         
-    for i, frame in enumerate(video_frames):
+    for i, frame in enumerate(out_frames):
         out.write(frame)
         
         if render:
