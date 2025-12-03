@@ -76,6 +76,11 @@ def calculate_contours(img_map, color_limits = COLOR_LIMITS):
         centroids = []
         draw_contours = []
         for i, contour in enumerate(contours):
+            
+            # Contour has no child or is a hole
+            if ((hierarchy[0, i, 2] == -1) or (hierarchy[0, i, 3] != -1)):
+                continue
+            
             M = cv2.moments(contour)
 
             # Checking if contour has valid area
