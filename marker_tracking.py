@@ -1,7 +1,7 @@
 import math
 import time
 
-import cv2
+import cv2 as cv
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -34,7 +34,7 @@ COLOR_LIMITS = {
 
 LEGEND_PARAMS = {
     'fontScale': 1,
-    'fontFace': cv2.LINE_AA,
+    'fontFace': cv.LINE_AA,
     'thickness': 2,
     'org': (50, 50),
 }
@@ -47,8 +47,8 @@ def get_color_masks(img_map, color_limits = COLOR_LIMITS):
 
     for color, limits in color_limits.items():
         mask = img_map['hsv']['img']
-        mask = cv2.inRange(mask, limits['min_color'], limits['max_color'])
-        mask = cv2.medianBlur(mask, ksize=3)
+        mask = cv.inRange(mask, limits['min_color'], limits['max_color'])
+        mask = cv.medianBlur(mask, ksize=3)
 
         img_tag = f"mask_{color}"
         img_map[img_tag] = {
@@ -65,12 +65,12 @@ def calculate_contours(img_map, color_limits = COLOR_LIMITS):
         img_tag = f"mask_{color}"
         mask = img_map[img_tag]['img']
         # Calculating external contours 
-        contours, hierarchy = cv2.findContours(
+        contours, hierarchy = cv.findContours(
             image=mask, 
-            mode=cv2.RETR_CCOMP, 
-            method=cv2.CHAIN_APPROX_SIMPLE)
+            mode=cv.RETR_CCOMP, 
+            method=cv.CHAIN_APPROX_SIMPLE)
 
-        contour_img = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+        contour_img = cv.cvtColor(mask, cv.COLOR_GRAY2RGB)
         
         # Getting contour centroids
         centroids = []
@@ -87,7 +87,7 @@ def calculate_contours(img_map, color_limits = COLOR_LIMITS):
                 if (hierarchy[0, i, 3] != -1):
                     continue
             
-            M = cv2.moments(contour)
+            M = cv.moments(contour)
 
             # Checking if contour has valid area
             weight = int(M['m00'])
@@ -99,18 +99,18 @@ def calculate_contours(img_map, color_limits = COLOR_LIMITS):
                 
                 draw_contours.append(contour)
 
-        contour_img = cv2.drawContours(
+        contour_img = cv.drawContours(
             image=contour_img, 
             contours=draw_contours, 
             contourIdx=-1, 
             color=(0, 255, 0), 
             thickness=5, 
-            lineType=cv2.LINE_AA
+            lineType=cv.LINE_AA
         )
 
         # Marking all centroids
         for centroid in centroids:
-            cv2.circle(contour_img, (centroid[0], centroid[1]), 10, (255, 0, 0), -1)
+            cv.circle(contour_img, (centroid[0], centroid[1]), 10, (255, 0, 0), -1)
 
         contour_map[color] = {
             'contours': contours,
@@ -143,11 +143,11 @@ def find_marker(img_map, contour_map, error_threshold = MARKER_ERROR):
         
         # Square contour check
         is_square = False        
-        epsilon = 0.03*cv2.arcLength(bkgd_contour,True)
-        approx_contour = cv2.approxPolyDP(bkgd_contour,epsilon, True)
+        epsilon = 0.03*cv.arcLength(bkgd_contour,True)
+        approx_contour = cv.approxPolyDP(bkgd_contour,epsilon, True)
         
         if len(approx_contour) == 4:
-            contour_bbox = cv2.minAreaRect(approx_contour)
+            contour_bbox = cv.minAreaRect(approx_contour)
             bbox_dims = contour_bbox[1]
             bbox_aspect_ratio = bbox_dims[0] / bbox_dims[1]
             if 0.8 < bbox_aspect_ratio < 1.2:
@@ -164,7 +164,7 @@ def find_marker(img_map, contour_map, error_threshold = MARKER_ERROR):
             inside_contours[color]['centroids'] = []
             for color_centroid in contour_map[color]['centroids']:
                 # Point's distance to contour ( > 0: Indide | < 0: Outside | = 0: Over contour)
-                relative_distance = cv2.pointPolygonTest(
+                relative_distance = cv.pointPolygonTest(
                     contour= bkgd_contour, 
                     pt= (color_centroid[0], color_centroid[1]), 
                     measureDist= False #True
@@ -237,30 +237,30 @@ def draw_annotations(img_map, bkgd_contours, best_fit):
         return img_map
     
     # Drawing bounding box
-    marker_img = cv2.drawContours(
+    marker_img = cv.drawContours(
         image= marker_img, 
         contours=bkgd_contours['contours'], 
         contourIdx=best_fit['id'], 
         color=(0, 255, 0), 
         thickness=5, 
-        lineType=cv2.LINE_AA
+        lineType=cv.LINE_AA
     )
     
     # Drawing color centroids
     inside_contours = best_fit['contours']
     for color, values in inside_contours.items():
         for centroid in values['centroids']:
-            cv2.circle(marker_img, (centroid[0], centroid[1]), 5, (255, 0, 0), -1)
-        cv2.circle(marker_img, values['center'], 5, (0, 0, 255), -1)
+            cv.circle(marker_img, (centroid[0], centroid[1]), 5, (255, 0, 0), -1)
+        cv.circle(marker_img, values['center'], 5, (0, 0, 255), -1)
     
     # Drawing RGB connecting lines
     center_R = inside_contours['red']['center'][:2]
     center_G = inside_contours['green']['center'][:2]
     center_B = inside_contours['blue']['center'][:2]
     
-    cv2.line(marker_img, center_G, center_B, (255, 255, 0), 3)
-    cv2.line(marker_img, center_G, center_R, (255, 255, 0), 3)
-    cv2.line(marker_img, center_R, center_B, (255, 255, 0), 3)
+    cv.line(marker_img, center_G, center_B, (255, 255, 0), 3)
+    cv.line(marker_img, center_G, center_R, (255, 255, 0), 3)
+    cv.line(marker_img, center_R, center_B, (255, 255, 0), 3)
     
     # Designing image legend
     img_lgd = f"Marker Found! [error: {best_fit['error']*100:.2f}]"  
@@ -283,13 +283,13 @@ def get_frame(img_map):
         lgd = img_data['lgd']
         color = img_data['lgd_color']
         
-        img_map[img_tag]['img'] = cv2.cvtColor(cv2.putText(img, lgd, color= color, **LEGEND_PARAMS), cv2.COLOR_BGR2RGB)
+        img_map[img_tag]['img'] = cv.cvtColor(cv.putText(img, lgd, color= color, **LEGEND_PARAMS), cv.COLOR_BGR2RGB)
 
-    mask_img = [cv2.resize(img_map[img_tag]['img'], None, fx=1/4, fy=1/4) for img_tag in img_map.keys() if 'mask' in img_tag]
-    mask_img = cv2.hconcat(mask_img)
+    mask_img = [cv.resize(img_map[img_tag]['img'], None, fx=1/4, fy=1/4) for img_tag in img_map.keys() if 'mask' in img_tag]
+    mask_img = cv.hconcat(mask_img)
     main_img = img_map['marker']['img']
     
-    output_frame = cv2.vconcat([main_img, mask_img])
+    output_frame = cv.vconcat([main_img, mask_img])
     
     return output_frame
 
@@ -298,14 +298,14 @@ def video_tracking(path, name, ext = '.mp4', codec= 'mp4v', render = False):
     print(f"Loading video...")
     start_time = time.perf_counter()
     
-    cap = cv2.VideoCapture(path + name + ext)
+    cap = cv.VideoCapture(path + name + ext)
     
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    frame_width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
     frame_height = int(frame_height + frame_height*1/4)
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    fps = cap.get(cv.CAP_PROP_FPS)
     
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    total_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
 
     video_frames = []
     for i in range(total_frames):
@@ -329,12 +329,12 @@ def video_tracking(path, name, ext = '.mp4', codec= 'mp4v', render = False):
         
         img_map = {
             'baseline': {
-                'img': cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                'img': cv.cvtColor(frame, cv.COLOR_BGR2RGB),
                 'lgd': 'baseline',
                 'lgd_color': DEFAULT_TEXT_COLOR,
             },
             'hsv': {
-                'img': cv2.cvtColor(frame, cv2.COLOR_BGR2HSV),
+                'img': cv.cvtColor(frame, cv.COLOR_BGR2HSV),
                 'lgd': 'hsv',
                 'lgd_color': DEFAULT_TEXT_COLOR,
             },
@@ -357,22 +357,22 @@ def video_tracking(path, name, ext = '.mp4', codec= 'mp4v', render = False):
     print(f"Saving video...")
     start_time = time.perf_counter()
     
-    fourcc = cv2.VideoWriter_fourcc(*codec)
+    fourcc = cv.VideoWriter_fourcc(*codec)
     full_path = path + name + '_tracking' + ext
-    out = cv2.VideoWriter(full_path, fourcc, fps, (frame_width, frame_height))
+    out = cv.VideoWriter(full_path, fourcc, fps, (frame_width, frame_height))
         
     for i, frame in enumerate(out_frames):
         out.write(frame)
         
         if render:
-            cv2.imshow('Marker Tracking', frame)
+            cv.imshow('Marker Tracking', frame)
 
-            if cv2.waitKey(1) == ord('q'):
+            if cv.waitKey(1) == ord('q'):
                 break
             
     cap.release()
     out.release()
-    cv2.destroyAllWindows()
+    cv.destroyAllWindows()
     
     end_time = time.perf_counter()
     print(f"    Time elapsed: {end_time - start_time:.1f} seconds")
